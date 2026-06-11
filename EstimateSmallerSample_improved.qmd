@@ -1,0 +1,569 @@
+---
+title: "Simulating a Smaller TAM Panel"
+subtitle: "10 samples of 1,000 individuals, weighted to the universe and matched against TAM spot results"
+date: today
+output-file: index
+format:
+  revealjs:
+    slide-number: true
+    smaller: true
+    scrollable: true
+    embed-resources: true
+    theme: default
+execute:
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(anesrake)
+library(data.table)
+library(gt)
+
+universe_size <- 17128055
+```
+
+```{r}
+#| label: load-data
+#| include: false
+
+demfile  <- read_rds("demIndMay25_May31.rds")
+swdfile  <- read_rds("viewingMay25_May31.rds")
+hhfile   <- read_rds("HHsMay25_May31.rds")
+demo_nat <- read_excel("KSA-TX4 Definition 20250626_External.xlsx", sheet = "TX4-Demo-National")
+
+# Spots from the full TAM panel. Excel stores pure times on 1899-12-31,
+# so re-attach the real date from the Date column.
+spots <- read_excel("RobertTables.xlsx", sheet = "Spots") |>
+  mutate(
+    `Start Time` = as.POSIXct(paste(as.Date(Date), format(`Start Time`, "%H:%M:%S"))),
+    `End Time`   = as.POSIXct(paste(as.Date(Date), format(`End Time`,   "%H:%M:%S")))
+  )
+
+demfile <- demfile |> filter(member_id != "zz")
+```
+
+```{r}
+#| label: parse-demographics
+#| include: false
+
+# Decode the INDdemos / HHdemos position strings into labelled columns,
+# using the TX4 definition file.
+
+# Individuals
+ind_def <- demo_nat |>
+  filter(`Level (HH/Ind)` == "INDIVIDUALS", !is.na(`Position in TX4`), !is.na(Value)) |>
+  transmute(
+    pos       = as.integer(`Position in TX4`),
+    value_chr = trimws(Value),
+    var_name  = Variable,
+    label     = `Reporting-eTAM`
+  )
+
+var_name_map <- ind_def |>
+  distinct(pos, var_name) |>
+  mutate(col_name = make.names(var_name) |>
+           str_replace_all("\\.+", "_") |>
+           str_remove("_$"))
+
+ind_def <- ind_def |> left_join(var_name_map, by = c("pos", "var_name"))
+
+setDT(demfile)
+
+for (p in sort(unique(ind_def$pos))) {
+  col     <- var_name_map$col_name[var_name_map$pos == p]
+  raw_col <- paste0("_raw_pos", p)
+  demfile[, (raw_col) := substr(INDdemos, p, p)]
+
+  lkp <- ind_def |>
+    filter(pos == p) |>
+    select(value_chr, label) |>
+    mutate(value_chr = str_remove(value_chr, "\\.0$"))
+
+  lkp_vec <- setNames(lkp$label, lkp$value_chr)
+  demfile[, (col) := lkp_vec[get(raw_col)]]
+  demfile[, (raw_col) := NULL]
+}
+
+# Households
+hh_def <- demo_nat |>
+  filter(`Level (HH/Ind)` == "HOUSEHOLD", !is.na(`Position in TX4`), !is.na(`Reporting-eTAM`)) |>
+  transmute(
+    pos       = as.integer(`Position in TX4`),
+    value_chr = trimws(Value),
+    var_name  = Variable,
+    label     = `Reporting-eTAM`
+  )
+
+hh_var_map <- hh_def |>
+  distinct(pos, var_name) |>
+  mutate(col_name = make.names(var_name) |>
+           str_replace_all("\\.+", "_") |>
+           str_remove("_$"))
+
+hh_def <- hh_def |> left_join(hh_var_map, by = c("pos", "var_name"))
+
+setDT(hhfile)
+
+for (p in sort(unique(hh_def$pos))) {
+  col     <- hh_var_map$col_name[hh_var_map$pos == p]
+  raw_col <- paste0("_raw_pos", p)
+  hhfile[, (raw_col) := substr(HHdemos, p, p)]
+
+  lkp_vec <- hh_def |>
+    filter(pos == p) |>
+    mutate(value_chr = str_remove(value_chr, "\\.0$")) |>
+    { \(d) setNames(d$label, d$value_chr) }()
+
+  hhfile[, (col) := lkp_vec[get(raw_col)]]
+  hhfile[, (raw_col) := NULL]
+}
+
+# Bring household-level variables onto the individual file
+hh_cols_to_add <- c("HHwgt", "Household_Size", "Dwelling_Type")
+demfile <- hhfile[, c("file", "HHid", hh_cols_to_add), with = FALSE][
+  demfile, on = c("file", "HHid")
+]
+```
+
+```{r}
+#| label: tv-counts
+#| include: false
+
+# Count TVs per household directly from the raw TX4 files (rim 4 input)
+tx4_files <- list.files("tx4", pattern = "\\.tx4$", full.names = TRUE)
+
+tv_list <- lapply(tx4_files, function(path) {
+  fname  <- basename(path)
+  lines  <- readLines(path, warn = FALSE)
+  hh_idx <- which(substr(lines, 1, 1) == "H")
+
+  tv_counts <- integer(length(hh_idx))
+  hhids     <- character(length(hh_idx))
+
+  for (i in seq_along(hh_idx)) {
+    hhids[i] <- sub("^H([^_]+)_.*", "\\1", lines[hh_idx[i]])
+    start    <- hh_idx[i] + 1
+    end      <- if (i < length(hh_idx)) hh_idx[i + 1] - 1 else length(lines)
+    block    <- lines[start:end]
+    tv_counts[i] <- sum(substr(block, 1, 1) == "T")
+  }
+
+  data.table(file = fname, HHid = hhids, `TVs in HH` = tv_counts)
+})
+
+tv_dt   <- rbindlist(tv_list)
+demfile <- tv_dt[demfile, on = c("file", "HHid")]
+```
+
+```{r}
+#| label: build-rims
+#| include: false
+
+# Five raking dimensions (rim variables). Age is deliberately excluded
+# so that all ages — including children — can be sampled and weighted.
+
+demfile$rim1 <- factor(demfile$Nationality,
+  levels = c("Nationality - Saudi", "Nationality - Arab Expats", "Nationality - Non-Arab Expats"),
+  labels = c("Saudi", "Arab Expats", "Non-Arab Expats"))
+
+demfile$rim2 <- factor(demfile$Region_Cluster,
+  levels = c(
+    "Detailed Region Split - Central Region",
+    "Detailed Region Split - Western Region",
+    "Detailed Region Split - Eastern Region",
+    "Detailed Region Split - Northen Region",
+    "Detailed Region Split - Southern Region"
+  ),
+  labels = c(
+    "Central Region Cities",
+    "Western Region Cities",
+    "Eastern Region Cities",
+    "North + South Region Cities",
+    "North + South Region Cities"
+  ))
+
+demfile[, rim3 := fcase(
+  Nationality == "Nationality - Saudi" & Household_Size == "Household Size - 1-2", "Saudi 1-2",
+  Nationality == "Nationality - Saudi" & Household_Size == "Household Size - 3-4", "Saudi 3-4",
+  Nationality == "Nationality - Saudi" & Household_Size == "Household Size - 5-6", "Saudi 5-6",
+  Nationality == "Nationality - Saudi" & Household_Size == "Household Size - 7+",  "Saudi 7+",
+  Nationality != "Nationality - Saudi" & Household_Size == "Household Size - 1-2", "Non-Saudi 1-2",
+  Nationality != "Nationality - Saudi" & Household_Size == "Household Size - 3-4", "Non-Saudi 3-4",
+  Nationality != "Nationality - Saudi" & Household_Size %in% c("Household Size - 5-6", "Household Size - 7+"), "Non-Saudi 5+"
+)]
+demfile[, rim3 := factor(rim3, levels = c(
+  "Saudi 1-2", "Saudi 3-4", "Saudi 5-6", "Saudi 7+",
+  "Non-Saudi 1-2", "Non-Saudi 3-4", "Non-Saudi 5+"
+))]
+
+demfile$rim4 <- factor(
+  if_else(demfile$`TVs in HH` == 1, "Single", "Multi"),
+  levels = c("Single", "Multi"))
+
+demfile[, rim5 := fcase(
+  Nationality == "Nationality - Saudi" & Gender == "Male",   "Saudi Male",
+  Nationality == "Nationality - Saudi" & Gender == "Female", "Saudi Female",
+  Nationality != "Nationality - Saudi" & Gender == "Male",   "Non-Saudi Male",
+  Nationality != "Nationality - Saudi" & Gender == "Female", "Non-Saudi Female"
+)]
+demfile[, rim5 := factor(rim5, levels = c(
+  "Saudi Male", "Saudi Female", "Non-Saudi Male", "Non-Saudi Female"
+))]
+```
+
+```{r}
+#| label: rim-targets
+#| include: false
+
+# Population targets for the five rims (from the TAM establishment survey)
+rim_targets <- list(
+  rim1 = setNames(c(0.678, 0.278, 0.044),        levels(demfile$rim1)),
+  rim2 = setNames(c(0.301, 0.388, 0.135, 0.176), levels(demfile$rim2)),
+  rim3 = setNames(c(0.025, 0.134, 0.251, 0.268,
+                    0.028, 0.098, 0.152),         levels(demfile$rim3)),
+  rim4 = setNames(c(0.497, 0.503),                levels(demfile$rim4)),
+  rim5 = setNames(c(0.343, 0.335, 0.183, 0.095), levels(demfile$rim5))
+)
+```
+
+```{r}
+#| label: draw-samples
+#| include: false
+
+# ── Sampling and daily raking ─────────────────────────────────────────────────
+# 1. Draw 10 independent samples of 1,000 individuals (all ages) from the
+#    panel as it stood on 20260525.
+# 2. For every day of the week, rake the members present that day to the
+#    rim targets — so each person gets a fresh weight every day, reflecting
+#    that day's sample composition.
+# 3. Scale each day's weights so they sum to the universe (17,128,055).
+
+week_dates <- as.character(seq(as.Date("2026-05-25"), as.Date("2026-05-31"), by = "day") |>
+                             format("%Y%m%d"))
+
+demfile_week <- demfile[file_date %in% week_dates]
+swdfile_week <- swdfile[Date      %in% week_dates]
+
+dem_allages_ref <- demfile[file_date == "20260525"]
+
+set.seed(42)
+samples_v2 <- lapply(seq_len(10), function(i) {
+
+  panel    <- as.data.frame(dplyr::slice_sample(dem_allages_ref, n = 1000))
+  panel_dt <- data.table(HHid = panel$HHid, member_id = panel$member_id)
+
+  daily <- lapply(week_dates, function(d) {
+    day_df <- as.data.frame(
+      demfile[file_date == d][panel_dt, on = .(HHid, member_id), nomatch = NULL]
+    )
+    if (nrow(day_df) < 50) return(NULL)
+
+    day_df$caseid <- seq_len(nrow(day_df))
+
+    rake <- tryCatch(
+      anesrake(rim_targets, day_df,
+               caseid  = day_df$caseid, pctlim = 2,
+               verbose = FALSE, maxit  = 1000),
+      error = function(e) NULL
+    )
+    if (is.null(rake)) return(NULL)
+
+    data.table(
+      HHid        = day_df$HHid,
+      member_id   = day_df$member_id,
+      file_date   = d,
+      weight      = rake$weightvec,
+      weight_proj = rake$weightvec / sum(rake$weightvec) * universe_size
+    )
+  })
+
+  rbindlist(Filter(Negate(is.null), daily))
+})
+
+# Viewing data for each sample's panel members (whole week)
+swdfile_samples <- lapply(seq_along(samples_v2), function(i) {
+  panel_ids <- unique(samples_v2[[i]][, .(HHid, member_id)])
+  swdfile_week[
+    data.table(HHid = panel_ids$HHid, MemberCode = panel_ids$member_id),
+    on = .(HHid, MemberCode), nomatch = NULL
+  ]
+})
+```
+
+```{r}
+#| label: grp-computation
+#| include: false
+
+# ── Matching spots to the samples ────────────────────────────────────────────
+# GRPAbsolute for a spot = sum of projected weights of everyone watching
+# the spot's channel in the minute the spot starts.
+
+# Broadcast minute helper (broadcast day starts 03:00)
+to_bcast_min <- function(t) {
+  h <- as.integer(substr(t, 1, 2))
+  m <- as.integer(substr(t, 3, 4))
+  (h * 60 + m) - (3 * 60)
+}
+
+spots_dt <- as.data.table(spots)[!is.na(Channel)]
+spots_dt[, spot_id  := .I]
+spots_dt[, date_chr := format(as.Date(Date), "%Y%m%d")]
+spots_dt[, spot_min := to_bcast_min(format(`Start Time`, "%H%M%S"))]
+
+calc_grp <- function(swd_w, weight_col) {
+  setDT(swd_w)
+  if (!"start_min" %in% names(swd_w)) swd_w[, start_min := to_bcast_min(StartTime)]
+  if (!"end_min"   %in% names(swd_w)) swd_w[, end_min   := to_bcast_min(EndTime)]
+  swd_w[, .w := get(weight_col)]
+
+  hits <- swd_w[spots_dt,
+    on = .(ChannelName == Channel,
+           Date        == date_chr,
+           start_min   <= spot_min,
+           end_min     >= spot_min),
+    .(spot_id = i.spot_id, w = .w),
+    nomatch = NULL
+  ]
+  hits[, .(grp = sum(w, na.rm = TRUE)), by = spot_id]
+}
+
+# Full TAM reference, recalculated: official INDWgt per person per day
+ind_wgt_week <- demfile_week[, .(HHid, member_id, file_date, INDWgt)]
+swd_tam <- merge(swdfile_week, ind_wgt_week,
+                 by.x = c("HHid", "MemberCode", "Date"),
+                 by.y = c("HHid", "member_id", "file_date"),
+                 all.x = FALSE)
+grp_tam <- calc_grp(swd_tam, "INDWgt")
+
+# The 10 samples: daily projected weights joined by person AND date
+grp_list <- lapply(seq_along(samples_v2), function(i) {
+  swd_i <- copy(as.data.table(swdfile_samples[[i]]))
+  wgt_i <- samples_v2[[i]][, .(HHid, member_id, file_date, weight_proj)]
+  swd_i <- merge(swd_i, wgt_i,
+                 by.x = c("HHid", "MemberCode", "Date"),
+                 by.y = c("HHid", "member_id",  "file_date"),
+                 all.x = FALSE)
+  res <- calc_grp(swd_i, "weight_proj")
+  setnames(res, "grp", paste0("S", i))
+  res
+})
+
+# ── Assemble the comparison table ─────────────────────────────────────────────
+base <- spots_dt[, .(
+  spot_id, Product, Channel,
+  Date    = as.Date(Date),
+  Start   = format(`Start Time`, "%H:%M:%S"),
+  GRP_TAM = GRPAbsolute
+)]
+
+base <- merge(base, grp_tam, by = "spot_id", all.x = TRUE)
+setnames(base, "grp", "GRP_TAM_calc")
+
+samp_cols <- paste0("S", 1:10)
+for (i in seq_along(grp_list)) {
+  s <- grp_list[[i]]
+  if (!is.null(s) && nrow(s) > 0)
+    base <- merge(base, s, by = "spot_id", all.x = TRUE)
+}
+for (col in samp_cols)
+  if (!col %in% names(base)) base[, (col) := 0L]
+for (col in c("GRP_TAM_calc", samp_cols))
+  set(base, which(is.na(base[[col]])), col, 0L)
+
+base[, spot_id := NULL]
+
+base_df        <- as.data.frame(base)
+samp_mat       <- as.matrix(base_df[, samp_cols])
+base_df$S_mean <- rowMeans(samp_mat)
+row_sd         <- apply(samp_mat, 1, sd)
+base_df$S_cv   <- ifelse(base_df$S_mean > 0, row_sd / base_df$S_mean * 100, NA_real_)
+```
+
+## The question
+
+Can a panel of **1,000 individuals** reproduce the results of the full TAM panel?
+
+To find out, we:
+
+1.  Draw **10 independent samples** of 1,000 individuals from the TAM panel
+2.  **Weight each sample daily** to the population structure of Saudi Arabia, projecting to the TV universe of **17,128,055 individuals**
+3.  Take a real list of **advertising spots** measured by the full TAM panel and recompute each spot's audience (GRP) from each of the 10 small samples
+4.  Compare the small-sample GRPs against the TAM benchmark
+
+## Process overview
+
+```{mermaid}
+flowchart LR
+  A["TAM panel<br/>week 25–31 May 2026"] --> B["Draw 10 samples<br/>of 1,000 individuals<br/>(all ages)"]
+  B --> C["Rake each sample<br/>day by day<br/>(5 rim dimensions)"]
+  C --> D["Project weights<br/>to universe<br/>17,128,055"]
+  E["Spot list<br/>(full TAM GRPs)"] --> F["Match each spot:<br/>channel + date +<br/>start minute"]
+  D --> F
+  F --> G["Compare GRP:<br/>TAM vs S1–S10"]
+```
+
+## Weighting targets
+
+Each daily subsample is raked to five population dimensions. Age is excluded so that **all ages — including children — can be sampled**, matching the universe behind the spot GRPs.
+
+```{r}
+#| label: tbl-rim-targets
+
+rim_labels <- c(
+  "Rim 1: Nationality",
+  "Rim 2: Region",
+  "Rim 3: HH Size x Nationality",
+  "Rim 4: TVs in HH",
+  "Rim 5: Gender x Nationality"
+)
+
+rims_df <- do.call(rbind, lapply(seq_along(rim_targets), function(i) {
+  data.frame(
+    rim      = rim_labels[i],
+    category = names(rim_targets[[i]]),
+    prop     = unname(rim_targets[[i]])
+  )
+}))
+
+rims_df |>
+  gt(groupname_col = "rim") |>
+  cols_label(category = "Category", prop = "Target %") |>
+  fmt_percent(columns = prop, decimals = 1) |>
+  tab_style(style = cell_text(weight = "bold"),
+            locations = cells_row_groups()) |>
+  tab_options(table.font.size = 18, data_row.padding = px(2))
+```
+
+## Drawing the samples
+
+- Sampling frame: **all individuals present in the panel on 25 May 2026**
+- Each of the 10 draws selects 1,000 individuals at random
+- For **every day of the week**, the members present that day are raked independently — so each person receives a **new weight every day**, reflecting that day's sample composition
+- Daily weights are scaled so each day sums to the universe of 17,128,055
+
+```{r}
+#| label: tbl-sanity
+
+data.frame(
+  Sample          = seq_along(samples_v2),
+  `Panel members` = sapply(samples_v2, \(x) uniqueN(paste(x$HHid, x$member_id))),
+  `Dates raked`   = sapply(samples_v2, \(x) uniqueN(x$file_date)),
+  check.names = FALSE
+) |>
+  gt() |>
+  tab_options(table.font.size = 18, data_row.padding = px(2))
+```
+
+## Weight distributions
+
+With only 1,000 people representing 17.1 million, the average projected weight is roughly 17,000 — each panelist "stands in" for about 17,000 individuals.
+
+```{r}
+#| label: tbl-weights
+
+weight_summary <- lapply(seq_along(samples_v2), function(i) {
+  per_ind <- samples_v2[[i]][, .(weight_proj = mean(weight_proj)), by = .(HHid, member_id)]
+  w <- per_ind$weight_proj
+  data.frame(
+    Sample = i,
+    Min    = round(min(w)),
+    Median = round(median(w)),
+    Mean   = round(mean(w)),
+    Max    = round(max(w)),
+    SD     = round(sd(w))
+  )
+}) |> do.call(rbind, args = _)
+
+weight_summary |>
+  gt() |>
+  fmt_number(columns = c(Min, Median, Mean, Max, SD), decimals = 0, use_seps = TRUE) |>
+  tab_header(title = "Projected weight per individual (averaged across days)") |>
+  tab_options(table.font.size = 18, data_row.padding = px(2))
+```
+
+## Matching the spot list
+
+The spot list comes from the **full TAM panel** and covers the same week.
+
+For every spot we compute:
+
+> **GRPAbsolute** = sum of projected weights of all sample members watching the spot's **channel** in the **minute the spot starts**, on the spot's **date** — using that day's weights.
+
+The same calculation, applied to the full TAM panel with its official weights (`INDWgt`), reproduces the benchmark and validates the method.
+
+```{r}
+#| label: spot-match-stats
+
+n_spots   <- nrow(base_df)
+n_matched <- sum(base_df$S_mean > 0)
+```
+
+Of the **`r n_spots` spots** in the list, the 10 samples found viewers for **`r n_matched`** — the remainder aired in minutes where no sampled panelist was watching that channel.
+
+## GRP: full TAM vs. 10 samples {.scrollable}
+
+```{r}
+#| label: tbl-grp
+
+base_df |>
+  gt() |>
+  tab_header(
+    title    = "GRPAbsolute per spot",
+    subtitle = "TAM benchmark vs. 10 simulated samples of 1,000 (S1–S10)"
+  ) |>
+  tab_spanner(label = "Reference",         columns = c(GRP_TAM, GRP_TAM_calc)) |>
+  tab_spanner(label = "Simulated samples", columns = all_of(samp_cols)) |>
+  tab_spanner(label = "Sample summary",    columns = c("S_mean", "S_cv")) |>
+  fmt_number(columns = c(GRP_TAM, GRP_TAM_calc, all_of(samp_cols), S_mean),
+             decimals = 0, use_seps = TRUE) |>
+  fmt_number(columns = "S_cv", decimals = 1, suffix = "%") |>
+  fmt_missing(columns = "S_cv", missing_text = "—") |>
+  cols_label(
+    GRP_TAM      = "Spots file",
+    GRP_TAM_calc = "Recalculated",
+    S_mean       = "Mean",
+    S_cv         = "CV"
+  ) |>
+  tab_style(
+    style     = cell_fill(color = "#fff3cd"),
+    locations = cells_body(
+      columns = "S_cv",
+      rows    = !is.na(base_df$S_cv) & base_df$S_cv > 100
+    )
+  ) |>
+  tab_options(table.font.size = 13, data_row.padding = px(2))
+```
+
+## Total campaign GRP
+
+Aggregating across all spots smooths out the spot-level noise — this is the fairest single-number comparison.
+
+```{r}
+#| label: tbl-totals
+
+totals <- data.frame(
+  Source = c("TAM (spots file)", "TAM (recalculated)", paste("Sample", 1:10), "Sample mean"),
+  GRP    = c(sum(base_df$GRP_TAM), sum(base_df$GRP_TAM_calc),
+             colSums(samp_mat), mean(colSums(samp_mat)))
+)
+
+totals |>
+  gt() |>
+  fmt_number(columns = GRP, decimals = 0, use_seps = TRUE) |>
+  tab_options(table.font.size = 18, data_row.padding = px(2))
+```
+
+## Takeaways
+
+- A 1,000-person sample carries **high projected weights** (\~17,000 per person), so single-spot GRPs are driven by very few viewers
+- Spot-level estimates are therefore **volatile** — the CV column flags spots where the 10 samples disagree strongly
+- Aggregated (campaign-level) GRPs are far more stable than individual spot GRPs
+- Daily raking keeps each day's weights honest about that day's panel composition

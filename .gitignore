@@ -1,0 +1,6 @@
+# Whitelist approach: ignore everything, allow only publishing essentials.
+# Data files (.rds, .xlsx, .csv) must never be committed to this public repo.
+*
+!.gitignore
+!EstimateSmallerSample_improved.qmd
+!_publish.yml
