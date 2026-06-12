@@ -33,13 +33,14 @@ jobs:
       # commit the updated _freeze/ alongside it, or this job will fail
       # (no data files are available here). Note: `quarto render` honors
       # the freeze cache, but `quarto publish`'s internal render does not,
-      # hence the explicit render step + render: false below.
+      # hence rendering explicitly and deploying _site/ directly.
       - name: Render from freeze cache
-        run: quarto render
+        run: |
+          quarto render
+          touch _site/.nojekyll
 
-      - uses: quarto-dev/quarto-actions/publish@v2
+      - uses: peaceiris/actions-gh-pages@v4
         with:
-          target: gh-pages
-          render: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages

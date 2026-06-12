@@ -1,4 +1,5 @@
 project:
+  output-dir: _site
   render:
     - EstimateSmallerSample_improved.qmd
 
