@@ -88,3 +88,15 @@ https://robruu.github.io/tam-smaller-panel-slides/
     directly. CI Quarto is pinned to 1.9.32 (match local).
 - Local Quarto: 1.9.32. Rendering from a valid freeze takes ~3 s; a full
   re-execution of the pipeline takes minutes (10 samples × 7 daily rakes).
+
+## Local development caveats
+
+- `quarto preview` (like `quarto publish`) bypasses the freeze cache and
+  re-executes the full R pipeline — expect minutes, not seconds. To view the
+  current slides quickly, open `_site/index.html` directly or serve it
+  (`python3 -m http.server -d _site`).
+- If Quarto fails with `NotFound ... stat '.quarto/quarto-session-temp...'`,
+  a stale/vanished session temp dir broke the project scan — fix with
+  `rm -rf .quarto/quarto-session-temp*`. The race is aggravated by Insync
+  syncing this folder; adding `.quarto/` (and ideally `_site/`) to Insync's
+  per-account Ignore Rules (GUI only; the CLI is license-gated) prevents it.
