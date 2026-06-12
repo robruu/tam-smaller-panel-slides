@@ -63,7 +63,12 @@ https://robruu.github.io/tam-smaller-panel-slides/
   subtitle, spanners, and column labels in that one element, so the whole
   block freezes as a unit). Depends on `border-collapse: separate` —
   sticky silently fails with `collapse` — and on the solid header
-  backgrounds so scrolled rows don't show through.
+  backgrounds so scrolled rows don't show through. Also requires
+  neutralizing TWO `overflow: auto` ancestors (gt's inline-styled wrapper
+  div and Quarto's `.cell-output-display`) with `overflow: visible
+  !important`; each would otherwise become the sticky scrollport, and
+  since neither scrolls (the slide section does), the header silently
+  fails to stick.
 - Corner logo: positioned bottom-right by `.reveal .slide-logo`; hidden on
   the title slide and on `{.scrollable}` slides via
   `.reveal:has(... .present)` selectors (data-state proved unreliable).

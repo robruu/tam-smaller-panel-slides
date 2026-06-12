@@ -147,6 +147,15 @@ $code-block-bg: #FFFFFF;
   background: #fff;
 }
 
+// gt's wrapper div (inline overflow:auto) and Quarto's .cell-output-display
+// (overflow:auto) each become the sticky scrollport — and neither scrolls
+// (the slide section does), defeating the rule above. Neutralize both so
+// the thead sticks to the scrolling section.
+.reveal section.scrollable div:has(> table.gt_table),
+.reveal section.scrollable .cell-output-display:has(table.gt_table) {
+  overflow: visible !important;
+}
+
 // Hide the corner logo on scrollable slides (it overlaps long tables).
 .reveal:has(> .slides section.scrollable.present) .slide-logo {
   display: none !important;
