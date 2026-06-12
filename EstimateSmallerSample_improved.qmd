@@ -450,20 +450,21 @@ rims_gt <- function(df) {
 }
 ```
 
-:::: {.columns}
+::::: columns
 ::: {.column width="48%"}
 ```{r}
 #| label: rim-targets-left
 rims_gt(rims_df[rims_df$rim %in% rim_labels[1:2], ])
 ```
 :::
+
 ::: {.column width="48%"}
 ```{r}
 #| label: rim-targets-right
 rims_gt(rims_df[rims_df$rim %in% rim_labels[3:5], ])
 ```
 :::
-::::
+:::::
 
 ## Drawing the samples
 
