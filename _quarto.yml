@@ -1,0 +1,6 @@
+project:
+  render:
+    - EstimateSmallerSample_improved.qmd
+
+execute:
+  freeze: auto

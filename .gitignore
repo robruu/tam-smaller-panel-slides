@@ -4,3 +4,10 @@
 !.gitignore
 !EstimateSmallerSample_improved.qmd
 !_publish.yml
+!_quarto.yml
+!3m3a-theme.scss
+!_freeze/
+!_freeze/**
+
+/.quarto/
+**/*.quarto_ipynb
