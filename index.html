@@ -9696,7 +9696,6 @@ Sample summary
 </section>
 <section id="total-campaign-grp" class="slide level2">
 <h2>Total campaign GRP</h2>
-<p>Aggregating across the spots where the recalculation matches the spots file smooths out the spot-level noise — this is the fairest single-number comparison.</p>
 <div class="cell">
 <div id="tbl-totals" class="cell quarto-float quarto-figure quarto-figure-center">
 <figure class="quarto-float quarto-float-tbl">
@@ -10178,8 +10177,6 @@ height: 0px !important;
 <li>A 1,000-person sample carries <strong>high projected weights</strong> (~17,000 per person), so single-spot GRPs are driven by very few viewers</li>
 <li>Spot-level estimates are therefore <strong>volatile</strong> — the CV column flags spots where the 10 samples disagree strongly</li>
 <li>Aggregated (campaign-level) GRPs are far more stable than individual spot GRPs</li>
-<li>Daily raking keeps each day’s weights honest about that day’s panel composition</li>
-<li><strong>Overnight spots (00:00–02:59) needed a correction</strong>: the spots file dates them by broadcast day, so their minutes must wrap past midnight rather than shift to the previous date — this resolved 13 previously mismatched spots</li>
 <li>Overnight spots carry high GRPs that the small samples capture less well — including them moves the sample mean from slightly above to <strong>~6% below</strong> the TAM benchmark</li>
 </ul>
 
