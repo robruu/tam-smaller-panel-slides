@@ -9,7 +9,9 @@ format:
     smaller: true
     scrollable: true
     embed-resources: true
-    theme: default
+    theme: [default, 3m3a-theme.scss]
+title-slide-attributes:
+  data-background-color: "#0E2841"
 execute:
   echo: false
   message: false
@@ -317,6 +319,9 @@ spots_dt <- as.data.table(spots)[!is.na(Channel)]
 spots_dt[, spot_id  := .I]
 spots_dt[, date_chr := format(as.Date(Date), "%Y%m%d")]
 spots_dt[, spot_min := to_bcast_min(format(`Start Time`, "%H%M%S"))]
+# The spots file dates overnight spots (00:00-02:59) by broadcast day, so keep
+# the date and wrap the minute past midnight instead of letting it go negative
+spots_dt[spot_min < 0, spot_min := spot_min + 1440]
 
 calc_grp <- function(swd_w, weight_col) {
   setDT(swd_w)
@@ -502,11 +507,14 @@ The same calculation, applied to the full TAM panel with its official weights (`
 ```{r}
 #| label: spot-match-stats
 
-n_spots   <- nrow(base_df)
-n_matched <- sum(base_df$S_mean > 0)
+# Keep spots where the recalculated GRP matches the spots file (as displayed, whole numbers)
+keep <- round(base_df$GRP_TAM) == round(base_df$GRP_TAM_calc)
+
+n_spots   <- sum(keep)
+n_matched <- sum(base_df$S_mean[keep] > 0)
 ```
 
-Of the **`r n_spots` spots** in the list, the 10 samples found viewers for **`r n_matched`** — the remainder aired in minutes where no sampled panelist was watching that channel.
+Of the **`r nrow(base_df)` spots** in the list, **`r n_spots`** have a recalculated GRP matching the spots file and are kept for the comparison. The 10 samples found viewers for **`r n_matched`** of these — the remainder aired in minutes where no sampled panelist was watching that channel.
 
 ## GRP: full TAM vs. 10 samples {.scrollable}
 
@@ -514,10 +522,12 @@ Of the **`r n_spots` spots** in the list, the 10 samples found viewers for **`r 
 #| label: tbl-grp
 
 base_df |>
+  # Keep only spots where the recalculated GRP matches the spots file (as displayed, whole numbers)
+  filter(round(GRP_TAM) == round(GRP_TAM_calc)) |>
   gt() |>
   tab_header(
     title    = "GRPAbsolute per spot",
-    subtitle = "TAM benchmark vs. 10 simulated samples of 1,000 (S1–S10)"
+    subtitle = "TAM benchmark vs. 10 simulated samples of 1,000 (S1–S10); only spots where the recalculation matches the spots file"
   ) |>
   tab_spanner(label = "Reference",         columns = c(GRP_TAM, GRP_TAM_calc)) |>
   tab_spanner(label = "Simulated samples", columns = all_of(samp_cols)) |>
@@ -536,7 +546,7 @@ base_df |>
     style     = cell_fill(color = "#fff3cd"),
     locations = cells_body(
       columns = "S_cv",
-      rows    = !is.na(base_df$S_cv) & base_df$S_cv > 100
+      rows    = !is.na(S_cv) & S_cv > 100
     )
   ) |>
   tab_options(table.font.size = 13, data_row.padding = px(2))
@@ -544,15 +554,15 @@ base_df |>
 
 ## Total campaign GRP
 
-Aggregating across all spots smooths out the spot-level noise — this is the fairest single-number comparison.
+
 
 ```{r}
 #| label: tbl-totals
 
 totals <- data.frame(
   Source = c("TAM (spots file)", "TAM (recalculated)", paste("Sample", 1:10), "Sample mean"),
-  GRP    = c(sum(base_df$GRP_TAM), sum(base_df$GRP_TAM_calc),
-             colSums(samp_mat), mean(colSums(samp_mat)))
+  GRP    = c(sum(base_df$GRP_TAM[keep]), sum(base_df$GRP_TAM_calc[keep]),
+             colSums(samp_mat[keep, ]), mean(colSums(samp_mat[keep, ])))
 )
 
 totals |>
@@ -566,4 +576,4 @@ totals |>
 - A 1,000-person sample carries **high projected weights** (\~17,000 per person), so single-spot GRPs are driven by very few viewers
 - Spot-level estimates are therefore **volatile** — the CV column flags spots where the 10 samples disagree strongly
 - Aggregated (campaign-level) GRPs are far more stable than individual spot GRPs
-- Daily raking keeps each day's weights honest about that day's panel composition
+- Overnight spots carry high GRPs that the small samples capture less well — including them moves the sample mean from slightly above to **~6% below** the TAM benchmark
