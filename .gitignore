@@ -8,6 +8,8 @@
 !3m3a-theme.scss
 !_freeze/
 !_freeze/**
+!.github/
+!.github/**
 
 /.quarto/
 **/*.quarto_ipynb

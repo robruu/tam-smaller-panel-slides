@@ -1,0 +1,26 @@
+name: Publish to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+
+      # The R pipeline is never run in CI: results come from the committed
+      # _freeze/ cache. If the qmd's code changes, re-render locally and
+      # commit the updated _freeze/ alongside it, or this job will fail
+      # (no R or data files are available here).
+      - uses: quarto-dev/quarto-actions/publish@v2
+        with:
+          target: gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
