@@ -58,6 +58,12 @@ https://robruu.github.io/tam-smaller-panel-slides/
 - gt tables ship ID-scoped CSS that outranks theme rules — header branding
   (navy `.gt_col_heading`/spanners, teal-tinted `.gt_group_heading`) is
   applied with `!important`.
+- On `{.scrollable}` slides the gt header sticks while rows scroll:
+  `position: sticky; top: 0` on the table's `<thead>` (gt keeps title,
+  subtitle, spanners, and column labels in that one element, so the whole
+  block freezes as a unit). Depends on `border-collapse: separate` —
+  sticky silently fails with `collapse` — and on the solid header
+  backgrounds so scrolled rows don't show through.
 - Corner logo: positioned bottom-right by `.reveal .slide-logo`; hidden on
   the title slide and on `{.scrollable}` slides via
   `.reveal:has(... .present)` selectors (data-state proved unreliable).
