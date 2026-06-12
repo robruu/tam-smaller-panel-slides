@@ -11,7 +11,13 @@ https://robruu.github.io/tam-smaller-panel-slides/
   document rendered by the Quarto project; `output-file: index`)
 - `_quarto.yml` — minimal Quarto project: renders only the qmd above,
   `output-dir: _site`, `execute: freeze: auto`
-- `3m3a-theme.scss` — custom reveal.js theme (dark `#0E2841` title slide)
+- `3m3a-theme.scss` — custom reveal.js theme (see "Theme conventions" below)
+- `assets/3m3a-logo.png` — navy/orange logo (corner logo on content slides,
+  wired via the `logo:` option in the qmd YAML)
+- `assets/3m3a-logo-white.png` — white/orange variant for the navy title
+  slide (navy `#425470` recoloured white with ImageMagick); embedded as
+  base64 in the scss `#title-slide` background, the file is kept for
+  provenance/regeneration only
 - `.github/workflows/publish.yml` — CI publishing workflow
 - Data inputs (NOT in git; the repo is public and uses a whitelist
   `.gitignore` that ignores everything except publishing essentials):
@@ -37,6 +43,33 @@ https://robruu.github.io/tam-smaller-panel-slides/
 4. Recompute each spot's GRP per sample (channel + date + broadcast minute of
    spot start; broadcast day starts 03:00, overnight minutes wrap +1440) and
    compare against the TAM benchmark (`INDWgt` recalculation validates method)
+
+## Theme conventions (3m3a-theme.scss)
+
+- Brand palette from the 3m3a PPT template: navy `#0E2841` (headings/text),
+  teal `#50C2C0` (accents/links), orange `#E97132`; font Barlow.
+- Navy background appears ONLY on the title slide (via
+  `title-slide-attributes: data-background-color` in the qmd YAML) and on
+  slides marked `{.section}` — content slides are deliberately light, tinted
+  `#ECF0F4` (~8% navy), per the PPT template. Don't make all slides navy.
+- Tables and code blocks are white "cards" (shadow + 8px radius). Tables use
+  `border-collapse: separate` because `collapse` ignores border-radius; the
+  four corner cells are rounded explicitly.
+- gt tables ship ID-scoped CSS that outranks theme rules — header branding
+  (navy `.gt_col_heading`/spanners, teal-tinted `.gt_group_heading`) is
+  applied with `!important`.
+- Corner logo: positioned bottom-right by `.reveal .slide-logo`; hidden on
+  the title slide and on `{.scrollable}` slides via
+  `.reveal:has(... .present)` selectors (data-state proved unreliable).
+- Quarto's auto-numbered "Table N" captions are hidden
+  (`.quarto-float-caption { display: none; }`).
+- Mermaid diagrams are themed through Quarto's Sass variables
+  (`$mermaid-node-bg-color: #fff`, navy node text, muted edges) in the
+  scss defaults section.
+- scss-only changes do NOT invalidate the freeze cache — render is ~3 s and
+  safe to push directly. Verify visual changes by screenshotting the built
+  slides headlessly, e.g.
+  `chromium-browser --headless --screenshot=/tmp/s.png "file://$PWD/_site/index.html#/2"`.
 
 ## Publishing & freeze rule (IMPORTANT)
 
