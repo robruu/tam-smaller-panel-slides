@@ -76,13 +76,21 @@ $code-block-bg: #FFFFFF;
 }
 .reveal a:hover { color: darken($brand-teal, 10%); border-bottom-color: $brand-teal; }
 
-// Tables – white "card" so they stand out against the tinted slide background
+// Tables – white "card" so they stand out against the tinted slide background.
+// `border-collapse: collapse` ignores border-radius, so use separate borders
+// with zero spacing and round the corner cells explicitly.
 .reveal table {
   font-size: 0.7em;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 8px;
   background: #fff;
   box-shadow: 0 1px 6px rgba($brand-navy, 0.12);
 }
+.reveal table tr:first-child > :first-child { border-top-left-radius: 8px; }
+.reveal table tr:first-child > :last-child  { border-top-right-radius: 8px; }
+.reveal table tr:last-child  > :first-child { border-bottom-left-radius: 8px; }
+.reveal table tr:last-child  > :last-child  { border-bottom-right-radius: 8px; }
 .reveal table th {
   background: $brand-navy;
   color: #fff;
@@ -101,6 +109,7 @@ $code-block-bg: #FFFFFF;
   border-left: 3px solid $brand-teal;
   padding: 0.6em 0.9em;
   background: #fff;
+  border-radius: 8px;
   box-shadow: 0 1px 6px rgba($brand-navy, 0.12);
 }
 
