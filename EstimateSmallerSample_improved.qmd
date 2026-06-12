@@ -416,7 +416,7 @@ flowchart LR
   F --> G["Compare GRP:<br/>TAM vs S1–S10"]
 ```
 
-## Weighting targets
+## Weighting targets {.scrollable}
 
 Each daily subsample is raked to five population dimensions. Age is excluded so that **all ages — including children — can be sampled**, matching the universe behind the spot GRPs.
 
@@ -555,8 +555,6 @@ base_df |>
 
 ## Total campaign GRP
 
-
-
 ```{r}
 #| label: tbl-totals
 
@@ -577,4 +575,4 @@ totals |>
 - A 1,000-person sample carries **high projected weights** (\~17,000 per person), so single-spot GRPs are driven by very few viewers
 - Spot-level estimates are therefore **volatile** — the CV column flags spots where the 10 samples disagree strongly
 - Aggregated (campaign-level) GRPs are far more stable than individual spot GRPs
-- Overnight spots carry high GRPs that the small samples capture less well — including them moves the sample mean from slightly above to **~6% below** the TAM benchmark
+- Overnight spots carry high GRPs that the small samples capture less well — including them moves the sample mean from slightly above to **\~6% below** the TAM benchmark
