@@ -137,6 +137,16 @@ $code-block-bg: #FFFFFF;
 // the floating grey labels add clutter, so hide them.
 .reveal .quarto-float-caption { display: none; }
 
+// On scrollable slides, freeze the gt header block (title + spanners +
+// column labels share one <thead>) while the rows scroll underneath.
+// Requires border-collapse: separate (set above) — sticky breaks with collapse.
+.reveal section.scrollable .gt_table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+}
+
 // Hide the corner logo on scrollable slides (it overlaps long tables).
 .reveal:has(> .slides section.scrollable.present) .slide-logo {
   display: none !important;
