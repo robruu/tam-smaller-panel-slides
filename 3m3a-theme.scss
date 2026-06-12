@@ -22,6 +22,16 @@ $presentation-heading-font: "Barlow", "Bahnschrift", "Segoe UI", system-ui, sans
 $presentation-heading-color: $brand-navy;
 $presentation-heading-font-weight: 700;
 
+// Mermaid diagrams – brand palette (white node cards on the tinted slide,
+// navy text/borders, teal arrows to match the accent colour)
+$mermaid-bg-color: $brand-bg;
+$mermaid-fg-color: $brand-teal;
+$mermaid-edge-color: $brand-muted;
+$mermaid-node-bg-color: #fff;
+$mermaid-node-fg-color: $brand-navy;
+$mermaid-label-bg-color: #fff;
+$mermaid-label-fg-color: $brand-navy;
+
 // Colours
 $body-bg: $brand-bg;
 $body-color: $brand-navy;
