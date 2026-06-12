@@ -14,3 +14,5 @@
 
 /.quarto/
 **/*.quarto_ipynb
+!assets/
+!assets/3m3a-logo.png

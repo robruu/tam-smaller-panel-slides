@@ -9,6 +9,7 @@ format:
     smaller: true
     scrollable: true
     embed-resources: true
+    logo: assets/3m3a-logo.png
     theme: [default, 3m3a-theme.scss]
 title-slide-attributes:
   data-background-color: "#0E2841"
