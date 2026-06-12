@@ -30,8 +30,8 @@ $selection-bg: rgba($brand-teal, 0.35);
 
 // Code
 $code-color: $brand-navy;
-$code-bg: #F1F4F7;
-$code-block-bg: #F1F4F7;
+$code-bg: #FFFFFF;
+$code-block-bg: #FFFFFF;
 
 /*-- scss:rules --*/
 
@@ -76,10 +76,12 @@ $code-block-bg: #F1F4F7;
 }
 .reveal a:hover { color: darken($brand-teal, 10%); border-bottom-color: $brand-teal; }
 
-// Tables
+// Tables – white "card" so they stand out against the tinted slide background
 .reveal table {
   font-size: 0.7em;
   border-collapse: collapse;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba($brand-navy, 0.12);
 }
 .reveal table th {
   background: $brand-navy;
@@ -93,11 +95,13 @@ $code-block-bg: #F1F4F7;
   padding: 0.3em 0.6em;
 }
 
-// Code
+// Code – white card to match the tables
 .reveal pre code {
   font-size: 0.78em;
   border-left: 3px solid $brand-teal;
   padding: 0.6em 0.9em;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba($brand-navy, 0.12);
 }
 
 // Blockquotes
