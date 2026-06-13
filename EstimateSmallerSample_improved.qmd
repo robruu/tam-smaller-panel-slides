@@ -611,7 +611,9 @@ n_matched <- sum(base_df$S_mean[keep] > 0)
 
 Of the **`r nrow(base_df)` spots** in the list, **`r n_spots`** have a recalculated GRP matching the spots file and are kept for the comparison. The 10 samples found viewers for **`r n_matched`** of these — the remainder aired in minutes where no sampled panelist was watching that channel.
 
-## GRP: full TAM vs. 10 samples {.scrollable}
+## GRP: full TAM vs. 10 samples
+
+::: {.grp-scroll}
 
 ```{r}
 #| label: tbl-grp
@@ -633,9 +635,17 @@ base_df |>
   fmt_missing(columns = "S_cv", missing_text = "—") |>
   cols_label(
     GRP_TAM      = "Spots file",
-    GRP_TAM_calc = "Recalculated",
+    GRP_TAM_calc = "tx4",
     S_mean       = "Mean",
     S_cv         = "CV"
+  ) |>
+  cols_width(
+    Product      ~ px(124),
+    Channel      ~ px(95),
+    Date         ~ px(78),
+    Start        ~ px(64),
+    GRP_TAM      ~ px(58),
+    GRP_TAM_calc ~ px(48)
   ) |>
   tab_style(
     style     = cell_fill(color = "#fff3cd"),
@@ -644,10 +654,15 @@ base_df |>
       rows    = !is.na(S_cv) & S_cv > 100
     )
   ) |>
-  tab_options(table.font.size = 13, data_row.padding = px(2))
+  tab_options(table.font.size = 12, data_row.padding = px(2),
+              table.layout = "fixed", table.width = pct(100))
 ```
 
-**CV (coefficient of variation)** is the spread of the 10 sample GRPs relative to their average (standard deviation ÷ mean, as a percent): low means the samples agree and the estimate is stable, while rows above 100% — highlighted in yellow — scatter more than their own average.
+:::
+
+::: {.cv-note}
+**CV — coefficient of variation:** how much the 10 samples disagree on a spot's GRP — the standard deviation of the sample GRPs divided by their mean, as a percent. Low CV means the samples land on nearly the same GRP (a stable, reliable estimate); rows above 100% (highlighted in yellow) scatter more than their own average.
+:::
 
 ## Total campaign GRP
 

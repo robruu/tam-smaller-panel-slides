@@ -161,6 +161,42 @@ $code-block-bg: #FFFFFF;
   display: none !important;
 }
 
+// GRP slide: scroll the table inside its own column so a side note stays put.
+// Same trick as the .scrollable section above — neutralize gt's inner
+// overflow:auto wrappers so .grp-scroll is the scrollport and the thead
+// sticks to it (depends on border-collapse: separate, set on .gt_table).
+.reveal .grp-scroll {
+  max-height: 430px;
+  overflow-y: auto;
+  // Clip the ~15px vertical-scrollbar gutter so it doesn't trigger a
+  // phantom horizontal scrollbar; the table fits the width with slack.
+  overflow-x: hidden;
+}
+.reveal .grp-scroll div:has(> table.gt_table),
+.reveal .grp-scroll .cell-output-display:has(table.gt_table) {
+  overflow: visible !important;
+}
+.reveal .grp-scroll .gt_table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+}
+
+// Full-width note banner along the bottom of the GRP slide.
+.reveal .cv-note {
+  box-sizing: border-box;
+  margin-top: 0.6em;
+  background: #fff;
+  border-left: 4px solid $brand-teal;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba($brand-navy, 0.12);
+  padding: 0.6em 1em;
+  font-size: 0.55em;
+  line-height: 1.4;
+}
+.reveal .cv-note p { margin: 0; }
+
 // Code – white card to match the tables
 .reveal pre code {
   font-size: 0.78em;
