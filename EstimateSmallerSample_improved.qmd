@@ -613,8 +613,7 @@ Of the **`r nrow(base_df)` spots** in the list, **`r n_spots`** have a recalcula
 
 ## GRP: full TAM vs. 10 samples
 
-::: {.grp-scroll}
-
+::: grp-scroll
 ```{r}
 #| label: tbl-grp
 
@@ -623,7 +622,7 @@ base_df |>
   filter(round(GRP_TAM) == round(GRP_TAM_calc)) |>
   gt() |>
   tab_header(
-    title    = "GRPAbsolute per spot",
+    title    = "GRP Absolute per spot",
     subtitle = "TAM benchmark vs. 10 simulated samples of 1,000 (S1–S10); only spots where the recalculation matches the spots file"
   ) |>
   tab_spanner(label = "Reference",         columns = c(GRP_TAM, GRP_TAM_calc)) |>
@@ -657,10 +656,9 @@ base_df |>
   tab_options(table.font.size = 12, data_row.padding = px(2),
               table.layout = "fixed", table.width = pct(100))
 ```
-
 :::
 
-::: {.cv-note}
+::: cv-note
 **CV — coefficient of variation:** how much the 10 samples disagree on a spot's GRP — the standard deviation of the sample GRPs divided by their mean, as a percent. Low CV means the samples land on nearly the same GRP (a stable, reliable estimate); rows above 100% (highlighted in yellow) scatter more than their own average.
 :::
 
