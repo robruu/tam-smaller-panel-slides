@@ -647,6 +647,8 @@ base_df |>
   tab_options(table.font.size = 13, data_row.padding = px(2))
 ```
 
+**CV (coefficient of variation)** is the spread of the 10 sample GRPs relative to their average (standard deviation ÷ mean, as a percent): low means the samples agree and the estimate is stable, while rows above 100% — highlighted in yellow — scatter more than their own average.
+
 ## Total campaign GRP
 
 ```{r}
