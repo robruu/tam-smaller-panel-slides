@@ -44,6 +44,11 @@ https://robruu.github.io/tam-smaller-panel-slides/
    spot start; broadcast day starts 03:00, overnight minutes wrap +1440) and
    compare against the TAM benchmark (`INDWgt` recalculation validates method)
 
+R packages loaded by the qmd: `tidyverse`, `readxl`, `janitor`, `anesrake`,
+`data.table`, `gt`, and `ggdist` (the last powers the raincloud slide —
+`stat_halfeye` + `stat_dots`). Installing `ggdist` is only needed for local
+re-execution; CI renders from the freeze cache and never runs R.
+
 ## Theme conventions (3m3a-theme.scss)
 
 - Brand palette from the 3m3a PPT template: navy `#0E2841` (headings/text),
