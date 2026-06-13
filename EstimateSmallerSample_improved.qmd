@@ -29,6 +29,7 @@ library(janitor)
 library(anesrake)
 library(data.table)
 library(gt)
+library(ggdist)
 
 universe_size <- 17128055
 ```
@@ -488,30 +489,105 @@ data.frame(
 
 ## Weight distributions
 
-With only 1,000 people representing 17.1 million, the average projected weight is roughly 17,000 — each panelist "stands in" for about 17,000 individuals.
+With only 1,000 people representing 17.1 million, the average projected weight is roughly 17,000 — each panelist "stands in" for about 17,000 individuals. The full TAM panel carries much smaller weights (mean ≈ 2,000) because it has far more members spread across the same universe, so each person represents fewer individuals.
 
 ```{r}
 #| label: tbl-weights
 
-weight_summary <- lapply(seq_along(samples_v2), function(i) {
-  per_ind <- samples_v2[[i]][, .(weight_proj = mean(weight_proj)), by = .(HHid, member_id)]
-  w <- per_ind$weight_proj
+summarise_weights <- function(w, label) {
   data.frame(
-    Sample = i,
+    Sample = label,
+    N      = length(w),
     Min    = round(min(w)),
     Median = round(median(w)),
     Mean   = round(mean(w)),
     Max    = round(max(w)),
     SD     = round(sd(w))
   )
+}
+
+# Full TAM panel: official INDWgt averaged per individual across days
+tam_per_ind <- ind_wgt_week[, .(INDWgt = mean(INDWgt)), by = .(HHid, member_id)]
+tam_summary <- summarise_weights(tam_per_ind$INDWgt, "TAM")
+
+sample_summary <- lapply(seq_along(samples_v2), function(i) {
+  per_ind <- samples_v2[[i]][, .(weight_proj = mean(weight_proj)), by = .(HHid, member_id)]
+  summarise_weights(per_ind$weight_proj, as.character(i))
 }) |> do.call(rbind, args = _)
+
+weight_summary <- rbind(tam_summary, sample_summary)
 
 weight_summary |>
   gt() |>
-  fmt_number(columns = c(Min, Median, Mean, Max, SD), decimals = 0, use_seps = TRUE) |>
+  fmt_number(columns = c(N, Min, Median, Mean, Max, SD), decimals = 0, use_seps = TRUE) |>
+  cols_label(N = "Members") |>
   tab_header(title = "Projected weight per individual (averaged across days)") |>
+  tab_style(
+    style     = cell_fill(color = "#ECF0F4"),
+    locations = cells_body(rows = Sample == "TAM")
+  ) |>
   tab_options(table.font.size = 18, data_row.padding = px(2))
 ```
+
+## Weight distributions, visualised
+
+```{r}
+#| label: weights-violin
+#| fig-width: 12
+#| fig-height: 6.5
+
+weights_long <- rbind(
+  data.table(group = "TAM", weight = tam_per_ind$INDWgt),
+  rbindlist(lapply(seq_along(samples_v2), function(i) {
+    per_ind <- samples_v2[[i]][, .(w = mean(weight_proj)), by = .(HHid, member_id)]
+    data.table(group = paste0("S", i), weight = per_ind$w)
+  }))
+)
+weights_long[, group := factor(group, levels = c("TAM", paste0("S", 1:10)))]
+
+ggplot(weights_long, aes(x = weight, y = fct_rev(group), fill = group == "TAM")) +
+  geom_violin(colour = NA, alpha = 0.9, scale = "width") +
+  geom_boxplot(width = 0.12, outlier.size = 0.4, fill = "white", alpha = 0.8) +
+  scale_x_log10(labels = scales::comma) +
+  scale_fill_manual(values = c("TRUE" = "#E97132", "FALSE" = "#50C2C0"), guide = "none") +
+  labs(
+    x = "Projected weight per individual (log scale)",
+    y = NULL,
+    title = "Full TAM panel vs. 10 simulated samples"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+The full TAM panel (orange) sits far to the left at much smaller weights, while the 10 samples (teal) cluster tightly around ≈ 17,000 with similar, well-behaved spreads.
+
+## Weight distributions, raincloud
+
+```{r}
+#| label: weights-raincloud
+#| fig-width: 12
+#| fig-height: 6.5
+
+set.seed(6271)
+# Subsample raw points for the "rain" so the dotplots stay legible
+weights_dots <- weights_long[, .SD[sample(.N, min(.N, 300))], by = group]
+
+ggplot(weights_long, aes(x = weight, y = fct_rev(group), fill = group == "TAM")) +
+  stat_halfeye(adjust = 0.6, width = 0.7, justification = -0.15,
+               .width = 0, point_colour = NA, colour = NA, alpha = 0.9) +
+  geom_boxplot(width = 0.12, outlier.shape = NA, alpha = 0.5) +
+  stat_dots(data = weights_dots, side = "bottom", justification = 1.05,
+            dotsize = 0.5, colour = NA) +
+  scale_x_log10(labels = scales::comma) +
+  scale_fill_manual(values = c("TRUE" = "#E97132", "FALSE" = "#50C2C0"), guide = "none") +
+  labs(
+    x = "Projected weight per individual (log scale)",
+    y = NULL,
+    title = "Half-violin + raw points (300 sampled per group)"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+The raincloud adds the raw points (a 300-member sample per group) beneath each half-violin, making the actual data density visible alongside the smoothed shape and the box.
 
 ## Matching the spot list
 
