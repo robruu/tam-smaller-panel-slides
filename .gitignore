@@ -3,6 +3,7 @@
 *
 !.gitignore
 !EstimateSmallerSample_improved.qmd
+!EstimateSmallerSample_Arab15plus5cities.qmd
 !_publish.yml
 !_quarto.yml
 !AGENTS.md

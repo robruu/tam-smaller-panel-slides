@@ -1,7 +1,7 @@
 project:
   output-dir: _site
   render:
-    - EstimateSmallerSample_improved.qmd
+    - EstimateSmallerSample_Arab15plus5cities.qmd
 
 execute:
   freeze: auto
