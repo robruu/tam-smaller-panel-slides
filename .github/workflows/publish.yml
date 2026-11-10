@@ -39,6 +39,20 @@ jobs:
           quarto render
           touch _site/.nojekyll
 
+      # Client-side password gate: replaces index.html with an AES-encrypted
+      # page that prompts for the password. Password lives in the
+      # SLIDES_PASSWORD repository secret (Settings > Secrets > Actions).
+      - name: Encrypt slides with StaticCrypt
+        env:
+          SLIDES_PASSWORD: ${{ secrets.SLIDES_PASSWORD }}
+        run: |
+          test -n "$SLIDES_PASSWORD" || { echo "SLIDES_PASSWORD secret is not set"; exit 1; }
+          npx --yes staticrypt@3 _site/index.html -p "$SLIDES_PASSWORD" \
+            --short --remember 0 -d _site_encrypted \
+            --template-title "TAM smaller panel" \
+            --template-instructions "Enter the password to view the presentation."
+          mv _site_encrypted/index.html _site/index.html
+
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
